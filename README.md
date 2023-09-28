@@ -62,6 +62,6 @@ ensure kp-rental
 <br>
 
 ## ❔ Questions / Sugestions
-For any questions or suggestions, just go to my [Discord](https://discord.gg//DxXFDqnxYs){:target="_blank"} and talk to me
+For any questions or suggestions, just go to my [Discord](https://discord.gg//DxXFDqnxYs) and talk to me
 
 
