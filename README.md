@@ -3,7 +3,18 @@ A vehicle rental system for **FiveM** with support for the **QBCore Framework**.
 
 <br>
 
+## ⭐ _Features_
+- 🚗 Add as many rentals as you want
+- 🅿️ Several parking slots to prevent collisions between vehicles and players waiting for other players
+- ⛽ Support for different fuel scripts such as "LegacyFuel", "Cdn-fuel", etc...
+- 🗺️ Display or not display the blips of each rental on the map
+- 💰 Allow the player to pay by bank transfer or with cash
+- 📇 Check if the player needs a driving license for a certain vehicle or not
+
+<br>
+
 ## ⚠️ _Dependencies_
+- qb-core: https://github.com/qbcore-framework/qb-core
 - qb-target: https://github.com/qbcore-framework/qb-target
 
 <br>
