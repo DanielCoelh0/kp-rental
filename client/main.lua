@@ -63,23 +63,34 @@ local function spawnPeds()
         SetBlockingOfNonTemporaryEvents(ped, true)
         TaskStartScenarioInPlace(ped, currentNpc.scenario, true, true)
         currentNpc.pedHandle = ped
-        
-        local opts = nil
-            
-        opts = {
-            label = Lang:t("menu.target"),
-            icon = 'fa-solid fa-car',
-            action = function()
-                TriggerEvent('kp-Rental:client:openRentalMenu', currentRental)
-            end
-        }
 
-        if opts then
-            exports['qb-target']:AddTargetEntity(ped, {
-                options = { opts },
-                distance = 2.0
-            })
-        end
+        exports['qb-target']:AddTargetEntity(ped, {
+            options = { 
+                    {
+                    label = Lang:t("menu.target"),
+                    icon = 'fa-solid fa-car',
+                    action = function()
+                        TriggerEvent('kp-Rental:client:openRentalMenu', currentRental)
+                    end
+                },
+                {
+                    label = "Return Vehicle",
+                    icon = 'fa-solid fa-car',
+                    canInteract = function(entity, distance, data) -- This will check if you can interact with it, this won't show up if it returns false, this is OPTIONAL
+                        local playerPed = PlayerPedId() -- Get the player's ped
+                        if IsPedInAnyVehicle(playerPed, false) then
+                            return true
+                        else
+                            return false
+                        end
+                    end,
+                    action = function()
+                        TriggerEvent('kp-Rental:client:deletevehicle')
+                    end
+                } 
+            },
+            distance = 2.0
+        })
     end
     pedsSpawned = true
 end
@@ -102,6 +113,42 @@ local function isThisParkAvaiable(coords)
         return false
     end
 end
+
+RegisterNetEvent("kp-Rental:client:deletevehicle", function()
+    local playerPed = PlayerPedId() -- Get the player ped
+    if IsPedInAnyVehicle(playerPed, false) then
+        local vehicle = GetVehiclePedIsIn(playerPed, false)
+        local currentPlate = QBCore.Functions.GetPlate(vehicle)
+        QBCore.Functions.TriggerCallback('kp-rental:server:hasrentalpapers', function(PlayerData)
+            if PlayerData then
+                local citizenid = PlayerData.citizenid
+                local count = #PlayerData.items
+                local flag = false
+                for c, d in pairs(PlayerData.items) do
+                    count = count - 1
+                    if "rental_papers" == d.name then
+                        local info = d['info']
+                        if citizenid == info.citizenid and currentPlate == info.plate then
+                            TriggerServerEvent("kp-rental:server:removepaper", d)
+                            DeleteVehicle(vehicle)
+                            flag = true
+                            count = 0
+                            break
+                        end
+                    end
+                end
+                while count > 1 do
+                    Wait(100)
+                end
+                if not flag then
+                    QBCore.Functions.Notify("I cannot take a vehicle without its papers.", "error")
+                end
+            else
+              QBCore.Functions.Notify("I cannot take a vehicle without its papers.", "error")
+            end
+          end)
+    end
+end)
 
 
 -- Custom Client Events
@@ -156,7 +203,14 @@ RegisterNetEvent('kp-Rental:client:openRentalMenu', function(rental)
             params = selectedParams
         }
     end
-
+    rentalMenu[#rentalMenu + 1] = {
+        header = "Recover Vehicles",
+        icon = "fa-solid fa-sign-in-alt",
+        params = {
+            event = "kp-Rental:client:recovervehicles",
+            args = rental
+        }
+    }
     rentalMenu[#rentalMenu + 1] = {
         header = Lang:t("menu.exit"),
         icon = "fa-solid fa-sign-out-alt",
@@ -204,7 +258,6 @@ RegisterNetEvent('kp-Rental:client:openPaymentMenu', function(data)
             }
         }
     }
-
     paymentMenu[#paymentMenu + 1] = {
         header = Lang:t("menu.exit"),
         icon = "fa-solid fa-sign-out-alt",
@@ -235,7 +288,120 @@ RegisterNetEvent("kp-Rental:client:attemptRentVehicle", function(data)
     else
         QBCore.Functions.Notify(Lang:t("error.parking_lot_full"), 'error', 5000)
     end
+end)
 
+RegisterNetEvent("kp-Rental:client:recovervehicles", function(rental)
+    --print(json.encode(rental))
+    QBCore.Functions.TriggerCallback('kp-rental:server:hasrentalpapers', function(PlayerData)
+        if PlayerData then
+            local paymentMenu = {}
+            paymentMenu[#paymentMenu + 1] = 
+            {
+                header = "RECOVE VEHICLES",
+                txt = "Recover Charge 200",
+                isMenuHeader = true,
+            }
+            local citizenid = PlayerData.citizenid
+            local count = #PlayerData.items
+            local flag = false
+            for c, d in pairs(PlayerData.items) do
+                count = count - 1
+                if "rental_papers" == d.name then
+                    local info = d['info']
+                    local slot = d['slot']
+                    local vmodel = info.vehicleModel
+                    local vplate = info.plate
+                    local carname = QBCore.Shared.Vehicles[vmodel].name
+                    if citizenid == info.citizenid then
+                        local selectedParams = {}
+                        
+                        selectedParams = {
+                            event = "kp-Rental:client:attemptRecoverVehicle",
+                            args = {
+                                paymentType = 'bank',
+                                vehicle = {
+                                    name = carname,
+                                    model = vmodel,
+                                    price = 200,
+                                    needLicense = false,
+                                    plate = vplate,
+                                    slot = slot
+                                },
+                                currentRental = rental
+                            }
+                        }
+                        paymentMenu[#paymentMenu + 1] = 
+                        {
+                            header = carname,
+                            txt = vplate,
+                            params = selectedParams
+                        }
+                    end
+                end
+            end
+            while count > 1 do
+                Wait(100)
+            end
+            paymentMenu[#paymentMenu + 1] = {
+                header = Lang:t("menu.exit"),
+                icon = "fa-solid fa-sign-out-alt",
+                params = {
+                    event = "qb-menu:closeMenu",
+                }
+            }
+            exports['qb-menu']:openMenu(paymentMenu)
+        else
+          QBCore.Functions.Notify("I cannot take a vehicle without its papers.", "error")
+        end
+      end)
+end)
+
+
+
+RegisterNetEvent("kp-Rental:client:attemptRecoverVehicle", function(data)
+    local isParkFree = false;
+    local availablePark = nil
+
+    for i, v in ipairs(data.currentRental.VehicleSpawn) do
+        if (isThisParkAvaiable(v.coords)) then
+            isParkFree = true
+            availablePark = v
+            break
+        else
+            isParkFree = false
+        end
+    end
+
+    if isParkFree then
+        TriggerServerEvent("kp-Rental:server:recovevehicle", data.paymentType, data.vehicle, availablePark)
+    else
+        QBCore.Functions.Notify(Lang:t("error.parking_lot_full"), 'error', 5000)
+    end
+end)
+
+RegisterNetEvent("kp-Rental:client:vehicleReSpawn", function(vehicleModel, vehiclePlate, availablePark, cb)
+    local model = vehicleModel
+
+    RequestModel(model)
+    while not HasModelLoaded(model) do
+        Citizen.Wait(0)
+    end
+    SetModelAsNoLongerNeeded(model)
+
+    QBCore.Functions.SpawnVehicle(model, function(veh)
+        SetEntityHeading(veh, availablePark.heading)
+        exports[Config.FuelExport]:SetFuel(veh, 100.0)
+        SetEntityAsMissionEntity(veh, true, true)
+        SetVehicleNumberPlateText(veh, vehiclePlate)
+        TriggerEvent("vehiclekeys:client:SetOwner", vehiclePlate)
+        local currentPlate = vehiclePlate
+    end, availablePark.coords, true)
+
+    local timeout = 10
+    while not NetworkDoesEntityExistWithNetworkId(veh) and timeout > 0 do
+        timeout = timeout - 1
+        Wait(1000)
+    end
 end)
 
 RegisterNetEvent("kp-Rental:client:payRent", function(paymentType, vehicle, availablePark)

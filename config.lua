@@ -2,7 +2,7 @@ Config = Config or {}
 
 -- Change fuel script export
 -- Suported fuel scripts: LegacyFuel, cdn-fuel
-Config.FuelExport = "LegacyFuel";
+Config.FuelExport = "cdn-fuel";
 
 -- true: allows the player to pay the rent with money from the bank
 -- false: allows the player to pay the rent only with cash in hand
