@@ -10,6 +10,7 @@ A vehicle rental system for **FiveM** with support for the **QBCore Framework**.
 - 🗺️ Display or not display the blips of each rental on the map
 - 💰 Allow the player to pay by bank transfer or with cash
 - 📇 Check if the player needs a driving license for a certain vehicle or not
+- 📇 Vehicle Return and recover
 
 <br>
 

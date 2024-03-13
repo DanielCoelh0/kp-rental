@@ -1,6 +1,36 @@
 local QBCore = exports['qb-core']:GetCoreObject()
-
+local vehiclelist = {}
+local recovervehicls = {}
 -- Custom Server Events
+
+RegisterServerEvent('kp-Rental:server:recovevehicle', function(paymentType, vehicle, availablePark)
+	local src = source
+	local Player = QBCore.Functions.GetPlayer(src)
+    local playerBankCash = Player.PlayerData.money["bank"]
+    if recovervehicls[vehicle.plate] then return TriggerClientEvent('QBCore:Notify', src, "Vehicle already recoverd", "error") end
+    if vehiclelist[vehicle.plate] then
+        local futureTimeStamp = os.time() 
+        if vehiclelist[vehicle.plate] < futureTimeStamp then
+            if playerBankCash >= vehicle.price then
+                Player.Functions.RemoveMoney(paymentType, vehicle.price, "rentals")
+                TriggerClientEvent('QBCore:Notify', src, Lang:t("success.rented_vehicle") .. vehicle.price, "success")
+                TriggerClientEvent('kp-Rental:client:vehicleReSpawn', src, vehicle.model, vehicle.plate, availablePark)
+                recovervehicls[vehicle.plate] = true
+            else
+                TriggerClientEvent('QBCore:Notify', src, Lang:t("error.no_money"), "error")
+            end
+        else
+            TriggerClientEvent('QBCore:Notify', src, "Not possible to recove this vehicle at thi time", "error")
+        end
+    else
+        Player.Functions.RemoveItem('rental_papers', 1, vehicle.slot)
+        TriggerClientEvent('inventory:client:ItemBox', src, QBCore.Shared.Items['rental_papers'], "remove")
+        TriggerClientEvent('QBCore:Notify', src, "Not possible to recove this vehicle", "error")
+    end
+
+end)
+
+--
 RegisterServerEvent('kp-Rental:server:attemptPayRent', function(paymentType, vehicle, availablePark)
 	local src = source
 	local Player = QBCore.Functions.GetPlayer(src)
@@ -42,12 +72,33 @@ RegisterServerEvent('kp-Rental:server:giveRentalPaper', function(model, plateTex
     local src = source
     local Player = QBCore.Functions.GetPlayer(src)
     local PlayerData = Player.PlayerData
+    local currentTimeStamp = os.time()
+    local newTimeStamp = currentTimeStamp + 3600
+    vehiclelist[plateText] = newTimeStamp
     local info = {
         temporaryOwner = PlayerData.charinfo.firstname .. ' ' .. PlayerData.charinfo.lastname,
         citizenid = PlayerData.citizenid,
         vehicleModel = model,
-        plate = plateText
+        plate = plateText,
     }
     Player.Functions.AddItem('rental_papers', 1, false, info)
     TriggerClientEvent('inventory:client:ItemBox', src, QBCore.Shared.Items['rental_papers'], "add")
+end)
+
+QBCore.Functions.CreateCallback('kp-rental:server:hasrentalpapers', function(source, cb)
+    local Player = QBCore.Functions.GetPlayer(source)
+    if Player then
+        cb(Player.PlayerData)
+    else
+        cb(false)
+    end
+end)
+RegisterServerEvent("kp-rental:server:removepaper", function(data)
+    local src = source
+    print(json.encode(data))
+    local Player = QBCore.Functions.GetPlayer(src)
+    if Player then
+        Player.Functions.RemoveItem(data.name, data.amount, data.slot)
+        TriggerClientEvent('inventory:client:ItemBox', src, QBCore.Shared.Items['rental_papers'], "remove")
+    end
 end)
