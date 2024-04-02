@@ -3,7 +3,7 @@ Config = Config or {}
 -- Change fuel script export
 -- Suported fuel scripts: LegacyFuel, cdn-fuel
 Config.FuelExport = "LegacyFuel";
-
+Config.oxInventory = false -- set true if you uses ox inventory
 -- true: allows the player to pay the rent with money from the bank
 -- false: allows the player to pay the rent only with cash in hand
 Config.EnableBankPayment = true;
