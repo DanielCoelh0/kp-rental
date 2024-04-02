@@ -82,7 +82,7 @@ local function spawnPeds()
                     end
                 }
             },
-            distance = 1.0
+            distance = 2.0
         })
     end
     pedsSpawned = true
