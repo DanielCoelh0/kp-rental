@@ -65,7 +65,7 @@ local function spawnPeds()
         currentNpc.pedHandle = ped
 
         exports['qb-target']:AddTargetEntity(ped, {
-            options = { 
+            options = {
                     {
                     label = Lang:t("menu.target"),
                     icon = 'fa-solid fa-car',
@@ -76,20 +76,13 @@ local function spawnPeds()
                 {
                     label = "Return Vehicle",
                     icon = 'fa-solid fa-car',
-                    canInteract = function(entity, distance, data) -- This will check if you can interact with it, this won't show up if it returns false, this is OPTIONAL
-                        local playerPed = PlayerPedId() -- Get the player's ped
-                        if IsPedInAnyVehicle(playerPed, false) then
-                            return true
-                        else
-                            return false
-                        end
-                    end,
+                    item = 'rental_papers',
                     action = function()
                         TriggerEvent('kp-Rental:client:deletevehicle')
                     end
-                } 
+                }
             },
-            distance = 2.0
+            distance = 1.0
         })
     end
     pedsSpawned = true
@@ -115,11 +108,12 @@ local function isThisParkAvaiable(coords)
 end
 
 RegisterNetEvent("kp-Rental:client:deletevehicle", function()
-    local playerPed = PlayerPedId() -- Get the player ped
-    if IsPedInAnyVehicle(playerPed, false) then
-        local vehicle = GetVehiclePedIsIn(playerPed, false)
-        local currentPlate = QBCore.Functions.GetPlate(vehicle)
-        QBCore.Functions.TriggerCallback('kp-rental:server:hasrentalpapers', function(PlayerData)
+    local playerPed = PlayerPedId()
+    local vehicle = GetVehiclePedIsIn(playerPed, true)
+    if vehicle > 0 then
+        local currentPlate = GetVehicleNumberPlateText(vehicle)
+        local PlayerData = QBCore.Functions.GetPlayerData()
+        if currentPlate then
             if PlayerData then
                 local citizenid = PlayerData.citizenid
                 local count = #PlayerData.items
@@ -144,9 +138,13 @@ RegisterNetEvent("kp-Rental:client:deletevehicle", function()
                     QBCore.Functions.Notify("I cannot take a vehicle without its papers.", "error")
                 end
             else
-              QBCore.Functions.Notify("I cannot take a vehicle without its papers.", "error")
+                QBCore.Functions.Notify("I cannot take a vehicle without its papers.", "error")
             end
-          end)
+        else
+            QBCore.Functions.Notify("No vehicle plate number found", "error")
+        end
+    else
+        QBCore.Functions.Notify("No vehicle", "error")
     end
 end)
 
@@ -195,7 +193,7 @@ RegisterNetEvent('kp-Rental:client:openRentalMenu', function(rental)
             }
         end
 
-        rentalMenu[#rentalMenu + 1] = 
+        rentalMenu[#rentalMenu + 1] =
         {
             header = currentVehicle.name,
             txt = Lang:t("menu.price") .. currentVehicle.price,
@@ -291,14 +289,13 @@ RegisterNetEvent("kp-Rental:client:attemptRentVehicle", function(data)
 end)
 
 RegisterNetEvent("kp-Rental:client:recovervehicles", function(rental)
-    --print(json.encode(rental))
-    QBCore.Functions.TriggerCallback('kp-rental:server:hasrentalpapers', function(PlayerData)
+    local PlayerData = QBCore.Functions.GetPlayerData()
         if PlayerData then
             local paymentMenu = {}
-            paymentMenu[#paymentMenu + 1] = 
+            paymentMenu[#paymentMenu + 1] =
             {
                 header = "RECOVE VEHICLES",
-                txt = "Recover Charge 200",
+                txt = "Recovery Charge 200",
                 isMenuHeader = true,
             }
             local citizenid = PlayerData.citizenid
@@ -314,7 +311,7 @@ RegisterNetEvent("kp-Rental:client:recovervehicles", function(rental)
                     local carname = QBCore.Shared.Vehicles[vmodel].name
                     if citizenid == info.citizenid then
                         local selectedParams = {}
-                        
+
                         selectedParams = {
                             event = "kp-Rental:client:attemptRecoverVehicle",
                             args = {
@@ -330,7 +327,7 @@ RegisterNetEvent("kp-Rental:client:recovervehicles", function(rental)
                                 currentRental = rental
                             }
                         }
-                        paymentMenu[#paymentMenu + 1] = 
+                        paymentMenu[#paymentMenu + 1] =
                         {
                             header = carname,
                             txt = vplate,
@@ -351,9 +348,8 @@ RegisterNetEvent("kp-Rental:client:recovervehicles", function(rental)
             }
             exports['qb-menu']:openMenu(paymentMenu)
         else
-          QBCore.Functions.Notify("I cannot take a vehicle without its papers.", "error")
-        end
-      end)
+        QBCore.Functions.Notify("I cannot take a vehicle without its papers.", "error")
+    end
 end)
 
 

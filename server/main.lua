@@ -1,6 +1,7 @@
 local QBCore = exports['qb-core']:GetCoreObject()
 local vehiclelist = {}
 local recovervehicls = {}
+local payreturn = {}
 -- Custom Server Events
 
 RegisterServerEvent('kp-Rental:server:recovevehicle', function(paymentType, vehicle, availablePark)
@@ -9,7 +10,7 @@ RegisterServerEvent('kp-Rental:server:recovevehicle', function(paymentType, vehi
     local playerBankCash = Player.PlayerData.money["bank"]
     if recovervehicls[vehicle.plate] then return TriggerClientEvent('QBCore:Notify', src, "Vehicle already recoverd", "error") end
     if vehiclelist[vehicle.plate] then
-        local futureTimeStamp = os.time() 
+        local futureTimeStamp = os.time()
         if vehiclelist[vehicle.plate] < futureTimeStamp then
             if playerBankCash >= vehicle.price then
                 Player.Functions.RemoveMoney(paymentType, vehicle.price, "rentals")
@@ -66,6 +67,7 @@ RegisterServerEvent('kp-Rental:server:payRent', function(paymentType, vehicle, a
     Player.Functions.RemoveMoney(paymentType, vehicle.price, "rentals")
     TriggerClientEvent('QBCore:Notify', src, Lang:t("success.rented_vehicle") .. vehicle.price, "success")
     TriggerClientEvent('kp-Rental:client:vehicleSpawn', src, vehicle.model, vehicle.price, availablePark)
+    payreturn[vehicle.model] = vehicle.price
 end)
 
 RegisterServerEvent('kp-Rental:server:giveRentalPaper', function(model, plateText)
@@ -95,10 +97,12 @@ QBCore.Functions.CreateCallback('kp-rental:server:hasrentalpapers', function(sou
 end)
 RegisterServerEvent("kp-rental:server:removepaper", function(data)
     local src = source
-    print(json.encode(data))
     local Player = QBCore.Functions.GetPlayer(src)
     if Player then
         Player.Functions.RemoveItem(data.name, data.amount, data.slot)
         TriggerClientEvent('inventory:client:ItemBox', src, QBCore.Shared.Items['rental_papers'], "remove")
+        local amount = payreturn[data.info.vehicleModel] or 25
+        amount = math.round((amount/2))
+        Player.Functions.AddMoney("cash", amount, "rentals-return")
     end
 end)
