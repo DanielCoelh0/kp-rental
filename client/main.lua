@@ -3,7 +3,6 @@ local QBCore = exports['qb-core']:GetCoreObject()
 local pedsSpawned = false
 local blips = {}
 
-
 -- Custom Useful Functions
 local function createBlip(options)
     if not options.coords or type(options.coords) ~= 'table' and type(options.coords) ~= 'vector3' then return error(('createBlip() expected coords in a vector3 or table but received %s'):format(options.coords)) end
@@ -72,17 +71,33 @@ local function spawnPeds()
                     action = function()
                         TriggerEvent('kp-Rental:client:openRentalMenu', currentRental)
                     end
+                    },
+                    {
+                        label = Lang:t("menu.target_recover"),
+                        icon = 'fa-solid fa-car',
+                        item = 'rental_papers',
+                        action = function()
+                            TriggerEvent('kp-Rental:client:recovervehicles', currentRental)
+                        end
+                        },
+                    {
+                        label = Lang:t("menu.target_return"),
+                        icon = 'fa-solid fa-car',
+                        item = 'rental_papers',
+                        action = function()
+                            TriggerEvent('kp-Rental:client:deletevehicle')
+                        end,
+                        canInteract = function ()
+                            local vehicle = GetVehiclePedIsIn(PlayerPedId(), true)
+                            if vehicle > 0 then
+                                return true
+                            else
+                                return false
+                            end
+                        end
+                    }
                 },
-                {
-                    label = "Return Vehicle",
-                    icon = 'fa-solid fa-car',
-                    item = 'rental_papers',
-                    action = function()
-                        TriggerEvent('kp-Rental:client:deletevehicle')
-                    end
-                }
-            },
-            distance = 2.0
+                distance = 2.0
         })
     end
     pedsSpawned = true
@@ -116,26 +131,61 @@ RegisterNetEvent("kp-Rental:client:deletevehicle", function()
         if currentPlate then
             if PlayerData then
                 local citizenid = PlayerData.citizenid
-                local count = #PlayerData.items
-                local flag = false
-                for c, d in pairs(PlayerData.items) do
-                    count = count - 1
-                    if "rental_papers" == d.name then
-                        local info = d['info']
-                        if citizenid == info.citizenid and currentPlate == info.plate then
-                            TriggerServerEvent("kp-rental:server:removepaper", d)
-                            DeleteVehicle(vehicle)
-                            flag = true
-                            count = 0
-                            break
+                if Config.oxInventory then
+                    local pitems = exports.ox_inventory:GetPlayerItems()
+                    local count = #pitems
+                    local flag = false
+                    for c, d in pairs(pitems) do
+                        count = count - 1
+                        if "rental_papers" == d.name then
+                            local info = d['metadata']
+                            if info and citizenid == info.citizenid and currentPlate == info.plate then
+                                for i = 0, 5 do
+                                    BreakOffVehicleWheel(vehicle, i, true, false, true, false)
+                                end
+                                Wait(500)
+                                for i = 0, 5 do -- 5 represents the number of vehicle doors
+                                    SetVehicleDoorBroken(vehicle, i, true)
+                                end
+                                Wait(500)
+                                SetVehicleEngineHealth(vehicle, 10.0)
+                                Wait(500)
+                                TriggerServerEvent("kp-rental:server:removepaper", d)
+                                DeleteVehicle(vehicle)
+                                flag = true
+                                count = 0
+                                break
+                            end
                         end
                     end
-                end
-                while count > 1 do
-                    Wait(100)
-                end
-                if not flag then
-                    QBCore.Functions.Notify("I cannot take a vehicle without its papers.", "error")
+                    while count > 1 do
+                        Wait(100)
+                    end
+                    if not flag then
+                        QBCore.Functions.Notify("I cannot take a vehicle without its papers.", "error")
+                    end
+                else
+                    local count = #PlayerData.items
+                    local flag = false
+                    for c, d in pairs(PlayerData.items) do
+                        count = count - 1
+                        if "rental_papers" == d.name then
+                            local info = d['info']
+                            if info and citizenid == info.citizenid and currentPlate == info.plate then
+                                TriggerServerEvent("kp-rental:server:removepaper", d)
+                                DeleteVehicle(vehicle)
+                                flag = true
+                                count = 0
+                                break
+                            end
+                        end
+                    end
+                    while count > 1 do
+                        Wait(100)
+                    end
+                    if not flag then
+                        QBCore.Functions.Notify("I cannot take a vehicle without its papers.", "error")
+                    end
                 end
             else
                 QBCore.Functions.Notify("I cannot take a vehicle without its papers.", "error")
@@ -201,14 +251,6 @@ RegisterNetEvent('kp-Rental:client:openRentalMenu', function(rental)
             params = selectedParams
         }
     end
-    rentalMenu[#rentalMenu + 1] = {
-        header = "Recover Vehicles",
-        icon = "fa-solid fa-sign-in-alt",
-        params = {
-            event = "kp-Rental:client:recovervehicles",
-            args = rental
-        }
-    }
     rentalMenu[#rentalMenu + 1] = {
         header = Lang:t("menu.exit"),
         icon = "fa-solid fa-sign-out-alt",
@@ -294,65 +336,136 @@ RegisterNetEvent("kp-Rental:client:recovervehicles", function(rental)
             local paymentMenu = {}
             paymentMenu[#paymentMenu + 1] =
             {
-                header = "RECOVE VEHICLES",
+                header = Lang:t("menu.target_recover"),
                 txt = "Recovery Charge 200",
                 isMenuHeader = true,
             }
             local citizenid = PlayerData.citizenid
-            local count = #PlayerData.items
-            local flag = false
-            for c, d in pairs(PlayerData.items) do
-                count = count - 1
-                if "rental_papers" == d.name then
-                    local info = d['info']
-                    local slot = d['slot']
-                    local vmodel = info.vehicleModel
-                    local vplate = info.plate
-                    local carname = QBCore.Shared.Vehicles[vmodel].name
-                    if citizenid == info.citizenid then
-                        local selectedParams = {}
+            if Config.oxInventory then
+                local pitems = exports.ox_inventory:GetPlayerItems()
+                local count = #pitems
+                local flag = false
+                for c, d in pairs(pitems) do
+                    count = count - 1
+                    if "rental_papers" == d.name then
+                        local info = d['metadata']
+                        local slot = d['slot']
+                        local vmodel = info.vehicleModel
+                        local vplate = info.plate
+                        local carname = QBCore.Shared.Vehicles[vmodel].name
+                        if citizenid == info.citizenid then
+                            local selectedParams = {}
 
-                        selectedParams = {
-                            event = "kp-Rental:client:attemptRecoverVehicle",
-                            args = {
-                                paymentType = 'bank',
-                                vehicle = {
-                                    name = carname,
-                                    model = vmodel,
-                                    price = 200,
-                                    needLicense = false,
-                                    plate = vplate,
-                                    slot = slot
-                                },
-                                currentRental = rental
+                            selectedParams = {
+                                event = "kp-Rental:client:attemptRecoverVehicle",
+                                args = {
+                                    paymentType = 'bank',
+                                    vehicle = {
+                                        name = carname,
+                                        model = vmodel,
+                                        price = 200,
+                                        needLicense = false,
+                                        plate = vplate,
+                                        slot = slot
+                                    },
+                                    currentRental = rental
+                                }
                             }
-                        }
-                        paymentMenu[#paymentMenu + 1] =
-                        {
-                            header = carname,
-                            txt = vplate,
-                            params = selectedParams
-                        }
+                            paymentMenu[#paymentMenu + 1] =
+                            {
+                                header = carname,
+                                txt = vplate,
+                                params = selectedParams
+                            }
+                        end
                     end
                 end
-            end
-            while count > 1 do
-                Wait(100)
-            end
-            paymentMenu[#paymentMenu + 1] = {
-                header = Lang:t("menu.exit"),
-                icon = "fa-solid fa-sign-out-alt",
-                params = {
-                    event = "qb-menu:closeMenu",
+                while count > 1 do
+                    Wait(100)
+                end
+                paymentMenu[#paymentMenu + 1] = {
+                    header = Lang:t("menu.exit"),
+                    icon = "fa-solid fa-sign-out-alt",
+                    params = {
+                        event = "qb-menu:closeMenu",
+                    }
                 }
-            }
+            else
+                local count = #PlayerData.items
+                local flag = false
+                for c, d in pairs(PlayerData.items) do
+                    count = count - 1
+                    if "rental_papers" == d.name then
+                        local info = d['info']
+                        local slot = d['slot']
+                        local vmodel = info.vehicleModel
+                        local vplate = info.plate
+                        local carname = QBCore.Shared.Vehicles[vmodel].name
+                        if citizenid == info.citizenid then
+                            local selectedParams = {}
+
+                            selectedParams = {
+                                event = "kp-Rental:client:attemptRecoverVehicle",
+                                args = {
+                                    paymentType = 'bank',
+                                    vehicle = {
+                                        name = carname,
+                                        model = vmodel,
+                                        price = 200,
+                                        needLicense = false,
+                                        plate = vplate,
+                                        slot = slot
+                                    },
+                                    currentRental = rental
+                                }
+                            }
+                            paymentMenu[#paymentMenu + 1] =
+                            {
+                                header = carname,
+                                txt = vplate,
+                                params = selectedParams
+                            }
+                        end
+                    end
+                end
+                while count > 1 do
+                    Wait(100)
+                end
+                paymentMenu[#paymentMenu + 1] = {
+                    header = Lang:t("menu.exit"),
+                    icon = "fa-solid fa-sign-out-alt",
+                    params = {
+                        event = "qb-menu:closeMenu",
+                    }
+                }
+            end
             exports['qb-menu']:openMenu(paymentMenu)
         else
         QBCore.Functions.Notify("I cannot take a vehicle without its papers.", "error")
     end
 end)
-
-
+RegisterNetEvent("kp-Rental:client:removehiclefromserver", function(plate)
+    if plate then
+        local vehicles = GetGamePool('CVehicle')
+        for _, vehicle in ipairs(vehicles) do
+            local vehiclePlate = GetVehicleNumberPlateText(vehicle)
+            if vehiclePlate == plate then
+                for i = 0, 5 do
+                    BreakOffVehicleWheel(vehicle, i, true, false, true, false)
+                end
+                Wait(500)
+                for i = 0, 5 do -- 5 represents the number of vehicle doors
+                    SetVehicleDoorBroken(vehicle, i, true)
+                end
+                Wait(500)
+                SetVehicleEngineHealth(vehicle, 10.0)
+                Wait(500)
+                DeleteVehicle(vehicle)
+                return
+            end
+        end
+    end
+end)
 
 RegisterNetEvent("kp-Rental:client:attemptRecoverVehicle", function(data)
     local isParkFree = false;

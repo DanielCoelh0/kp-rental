@@ -47,6 +47,14 @@ Afther this, we need to add this new line in **qb-core/shared/itens.lua**.
                '<p><strong>Vehicle Model: </strong><span>' + itemData.info.vehicleModel + '</span></p>' + 
                '<p><strong>Plate: </strong><span>' + itemData.info.plate + '</span></p>');
 ```
+or for new qb inventory
+```Lua
+    case "rental_papers":
+    return `<p><strong>Temporary Owner: </strong><span>${itemData.info.temporaryOwner}</span></p> 
+            <p><strong>Citizen ID: </strong><span>${itemData.info.citizenid}</span></p>
+            <p><strong>Vehicle Model: </strong><span>${itemData.info.vehicleModel}</span></p>
+            <p><strong>Plate: </strong><span>${itemData.info.plate}</span></p>)`;
+```
 
 **3.2:** Locate the next image on Images Folder, and put them on *yourinventoryname/html/images/*
 
