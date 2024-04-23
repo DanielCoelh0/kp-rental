@@ -26,6 +26,8 @@ local Translations = {
         ['money_description'] = 'Pagar com dinheiro',
 
         ['target'] = 'Alugar Veículo',
+        ['target_recover'] = 'Recover Veículo',
+        ['target_return'] = 'Return Veículo',
     }
 }
 

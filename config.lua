@@ -69,3 +69,7 @@ Config.Vehicles = {
     { name = 'Panto',       modelName = 'panto',        price = 250,    needLicense = true,     menuIcon = 'fa-solid fa-car-side' },
     { name = 'Bison',       modelName = 'bison',        price = 500,    needLicense = true,     menuIcon = 'fa-solid fa-truck-pickup' }
 }
+
+if GetResourceState('ox_inventory') == 'started' then
+    Config.oxInventory = true
+end

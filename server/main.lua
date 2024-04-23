@@ -3,7 +3,6 @@ local vehiclelist = {}
 local recovervehicls = {}
 local payreturn = {}
 -- Custom Server Events
-
 RegisterServerEvent('kp-Rental:server:recovevehicle', function(paymentType, vehicle, availablePark)
 	local src = source
 	local Player = QBCore.Functions.GetPlayer(src)
@@ -83,13 +82,13 @@ RegisterServerEvent('kp-Rental:server:giveRentalPaper', function(model, plateTex
     local currentTimeStamp = os.time()
     local newTimeStamp = currentTimeStamp + 3600
     vehiclelist[plateText] = newTimeStamp
-    
     if Config.oxInventory then
         local metadata = {
             temporaryOwner = PlayerData.charinfo.firstname .. ' ' .. PlayerData.charinfo.lastname,
             citizenid = PlayerData.citizenid,
             vehicleModel = model,
             plate = plateText,
+            description = 'Temporary Owner: '..PlayerData.charinfo.firstname .. ' ' .. PlayerData.charinfo.lastname..' | Plate: '..plateText..' | Vehicle: '..model:gsub("^%l", string.upper)..' | Rent On:'..os.date("%Y-%m-%d %H:%M:%S", newTimeStamp),
         }
         exports.ox_inventory:AddItem(src, 'rental_papers', 1, metadata)
     else
@@ -104,15 +103,7 @@ RegisterServerEvent('kp-Rental:server:giveRentalPaper', function(model, plateTex
     end
 end)
 
-QBCore.Functions.CreateCallback('kp-rental:server:hasrentalpapers', function(source, cb)
-    local Player = QBCore.Functions.GetPlayer(source)
-    if Player then
-        cb(Player.PlayerData)
-    else
-        cb(false)
-    end
-end)
-RegisterServerEvent("kp-rental:server:removepaper", function(data)
+RegisterServerEvent("kp-rental:server:removepaper", function(data, plate)
     local src = source
     local Player = QBCore.Functions.GetPlayer(src)
     if Player then
@@ -121,12 +112,14 @@ RegisterServerEvent("kp-rental:server:removepaper", function(data)
             local amount = payreturn[data.metadata.vehicleModel] or 25
             amount = math.round((amount/2))
             Player.Functions.AddMoney("cash", amount, "rentals-return")
+            TriggerClientEvent('kp-Rental:client:removehiclefromserver', src, data.metadata.plate)
         else
             Player.Functions.RemoveItem(data.name, data.amount, data.slot)
             TriggerClientEvent('inventory:client:ItemBox', src, QBCore.Shared.Items['rental_papers'], "remove")
             local amount = payreturn[data.info.vehicleModel] or 25
             amount = math.round((amount/2))
             Player.Functions.AddMoney("cash", amount, "rentals-return")
+            TriggerClientEvent('kp-Rental:client:removehiclefromserver', src, data.info.plate)
         end
     end
 end)

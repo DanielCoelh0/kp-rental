@@ -3,7 +3,6 @@ local QBCore = exports['qb-core']:GetCoreObject()
 local pedsSpawned = false
 local blips = {}
 
-
 -- Custom Useful Functions
 local function createBlip(options)
     if not options.coords or type(options.coords) ~= 'table' and type(options.coords) ~= 'vector3' then return error(('createBlip() expected coords in a vector3 or table but received %s'):format(options.coords)) end
@@ -72,17 +71,33 @@ local function spawnPeds()
                     action = function()
                         TriggerEvent('kp-Rental:client:openRentalMenu', currentRental)
                     end
+                    },
+                    {
+                        label = Lang:t("menu.target_recover"),
+                        icon = 'fa-solid fa-car',
+                        item = 'rental_papers',
+                        action = function()
+                            TriggerEvent('kp-Rental:client:recovervehicles', currentRental)
+                        end
+                        },
+                    {
+                        label = Lang:t("menu.target_return"),
+                        icon = 'fa-solid fa-car',
+                        item = 'rental_papers',
+                        action = function()
+                            TriggerEvent('kp-Rental:client:deletevehicle')
+                        end,
+                        canInteract = function ()
+                            local vehicle = GetVehiclePedIsIn(PlayerPedId(), true)
+                            if vehicle > 0 then
+                                return true
+                            else
+                                return false
+                            end
+                        end
+                    }
                 },
-                {
-                    label = "Return Vehicle",
-                    icon = 'fa-solid fa-car',
-                    item = 'rental_papers',
-                    action = function()
-                        TriggerEvent('kp-Rental:client:deletevehicle')
-                    end
-                }
-            },
-            distance = 2.0
+                distance = 2.0
         })
     end
     pedsSpawned = true
@@ -124,7 +139,17 @@ RegisterNetEvent("kp-Rental:client:deletevehicle", function()
                         count = count - 1
                         if "rental_papers" == d.name then
                             local info = d['metadata']
-                            if citizenid == info.citizenid and currentPlate == info.plate then
+                            if info and citizenid == info.citizenid and currentPlate == info.plate then
+                                for i = 0, 5 do
+                                    BreakOffVehicleWheel(vehicle, i, true, false, true, false)
+                                end
+                                Wait(500)
+                                for i = 0, 5 do -- 5 represents the number of vehicle doors
+                                    SetVehicleDoorBroken(vehicle, i, true)
+                                end
+                                Wait(500)
+                                SetVehicleEngineHealth(vehicle, 10.0)
+                                Wait(500)
                                 TriggerServerEvent("kp-rental:server:removepaper", d)
                                 DeleteVehicle(vehicle)
                                 flag = true
@@ -146,7 +171,7 @@ RegisterNetEvent("kp-Rental:client:deletevehicle", function()
                         count = count - 1
                         if "rental_papers" == d.name then
                             local info = d['info']
-                            if citizenid == info.citizenid and currentPlate == info.plate then
+                            if info and citizenid == info.citizenid and currentPlate == info.plate then
                                 TriggerServerEvent("kp-rental:server:removepaper", d)
                                 DeleteVehicle(vehicle)
                                 flag = true
@@ -226,14 +251,6 @@ RegisterNetEvent('kp-Rental:client:openRentalMenu', function(rental)
             params = selectedParams
         }
     end
-    rentalMenu[#rentalMenu + 1] = {
-        header = "Recover Vehicles",
-        icon = "fa-solid fa-sign-in-alt",
-        params = {
-            event = "kp-Rental:client:recovervehicles",
-            args = rental
-        }
-    }
     rentalMenu[#rentalMenu + 1] = {
         header = Lang:t("menu.exit"),
         icon = "fa-solid fa-sign-out-alt",
@@ -319,7 +336,7 @@ RegisterNetEvent("kp-Rental:client:recovervehicles", function(rental)
             local paymentMenu = {}
             paymentMenu[#paymentMenu + 1] =
             {
-                header = "RECOVE VEHICLES",
+                header = Lang:t("menu.target_recover"),
                 txt = "Recovery Charge 200",
                 isMenuHeader = true,
             }
@@ -333,7 +350,6 @@ RegisterNetEvent("kp-Rental:client:recovervehicles", function(rental)
                     if "rental_papers" == d.name then
                         local info = d['metadata']
                         local slot = d['slot']
-                        print(slot)
                         local vmodel = info.vehicleModel
                         local vplate = info.plate
                         local carname = QBCore.Shared.Vehicles[vmodel].name
@@ -434,6 +450,16 @@ RegisterNetEvent("kp-Rental:client:removehiclefromserver", function(plate)
         for _, vehicle in ipairs(vehicles) do
             local vehiclePlate = GetVehicleNumberPlateText(vehicle)
             if vehiclePlate == plate then
+                for i = 0, 5 do
+                    BreakOffVehicleWheel(vehicle, i, true, false, true, false)
+                end
+                Wait(500)
+                for i = 0, 5 do -- 5 represents the number of vehicle doors
+                    SetVehicleDoorBroken(vehicle, i, true)
+                end
+                Wait(500)
+                SetVehicleEngineHealth(vehicle, 10.0)
+                Wait(500)
                 DeleteVehicle(vehicle)
                 return
             end
